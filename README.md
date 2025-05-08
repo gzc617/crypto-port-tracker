@@ -45,3 +45,15 @@ This project uses the following license: `<license_name>`.
 ## Acknowledgements
 
 This project was inspired by the CoinGecko API. For more information on how to use the CoinGecko API, check out this official documentation and blog.
+
+## Support the Project
+
+If you find this project helpful, consider supporting it by donating cryptocurrency. Your support helps keep the project alive and maintained!
+
+### Donation Wallets
+
+- **Bitcoin (BTC):** `34rqfUFenX2EMvDfpn7phgiKdHbxTJ5Wuw`
+- **Ethereum (ETH):** `0x0bB11fD9a3B8EfBd899325c2EA574e28E6E87cB2`
+- **USDT (ERC-20):** `0x679c5733F4109283B46158AaD3a2C8981425c951`
+
+Thank you for your support! 🙏
