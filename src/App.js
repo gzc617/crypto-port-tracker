@@ -5,6 +5,7 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import './App.css'; // Import the CSS
 import NewsTicker from './components/News'; // Import the News components
+import CryptoNewsAnalyzer from './components/CryptoNewsAnalyzer'; // Import the CryptoNewsAnalyzer components
 
 function CoinDetails({ coin, history }) {
   // Prepare the data for the line chart
@@ -15,7 +16,7 @@ function CoinDetails({ coin, history }) {
     <div className="coin-details">
       <h2>{coin.name} ({coin.symbol.toUpperCase()})</h2>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%' }}>
-        <span style={{ color: priceChangeColor, fontSize: '0.8em' }}>
+        <span style={{ color: priceChangeColor, fontSize: '0.8em', top: 2, right: 1200, }}>
           {coin.price_change_24h > 0 && '+'}{coin.price_change_24h?.toFixed(2)}%
         </span>
         <p style={{ fontSize: '2em', margin: 0 }}>
@@ -43,16 +44,31 @@ const holdingsData = [
 
 function App() {
   const [coins, setCoins] = useState([]);
+  const [allCoins, setAllCoins] = useState([]);
   const [selectedCoin, setSelectedCoin] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
-  const api_key = 'YOUR_API_KEY'; // replace this with your own API key
+  const api_key = process.env.REACT_APP_COIN_GECKP_API_KEY;
 
   const holdings = useMemo(() => holdingsData, []);
 
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042']; // add more colors if you have more coins
+
+  useEffect(() => {
+    axios.get(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd`, {
+      headers: {
+        'X-CoinAPI-Key': api_key
+      }
+    })
+      .then(response => {
+        setAllCoins(response.data);
+      })
+      .catch(error => {
+        console.error('Error fetching all coins', error);
+      });
+  }, []);
 
   useEffect(() => {
     axios.get(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${holdings.map(holding => holding.id).join(',')}`, {
@@ -81,7 +97,7 @@ function App() {
 
   const handleCoinSelect = (id) => {
     setLoading(true);
-    const selected = coins.find(coin => coin.id === id);
+    const selected = allCoins.find(coin => coin.id === id);
     setSelectedCoin(selected);
   
     // Fetch historical data for the selected date range
@@ -90,7 +106,7 @@ function App() {
     while (date <= endDate) {
       const formattedDate = `${date.getDate()}-${date.getMonth() + 1}-${date.getFullYear()}`;
   
-      const promise = axios.get(`http://localhost:3001/api/v3/coins/${id}/history?date=${formattedDate}`, {
+      const promise = axios.get(`https://api.coingecko.com/api/v3/coins/${id}/history?date=${formattedDate}`, {
         headers: {
           'X-CoinAPI-Key': api_key
         }
@@ -133,7 +149,7 @@ function App() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100vh' }}>
             <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', width: '100%', height: '100%' }}>
-              <div style={{ flex: 1, border: '1px solid black', margin: '10px', padding: '20px', borderRadius: '10px', boxSizing: 'border-box' }}>
+              <div style={{ flex: 1, border: '1px solid #333', margin: '10px', padding: '20px', borderRadius: '10px', boxSizing: 'border-box', backgroundColor: '#1F1F1F', color: '#A9A9A9' }}>
                 <h2>Portfolio Tracker</h2>
                 <ResponsiveContainer width="100%" height={400}>
                   <PieChart>
@@ -180,16 +196,19 @@ function App() {
                 <h3>ROI: {roi.toFixed(2)}%</h3>
                 <h3>P&L: ${pnl.toFixed(2)}</h3>
               </div>
-              <div style={{ flex: 1, border: '1px solid black', margin: '10px', padding: '20px', borderRadius: '10px', boxSizing: 'border-box' }}>
+              <div style={{ flex: 1, border: '1px solid #333', margin: '10px', padding: '20px', borderRadius: '10px', boxSizing: 'border-box', backgroundColor: '#1F1F1F', color: '#A9A9A9' }}>
                 <h2>Trends</h2>
                 <select value={selectedCoin ? selectedCoin.id : ''} onChange={e => handleCoinSelect(e.target.value)}>
-                  {coins.map(coin => (
+                  {allCoins.map(coin => (
                     <option key={coin.id} value={coin.id}>{coin.name} ({coin.symbol.toUpperCase()})</option>
                   ))}
                 </select>
                 <DatePicker selected={startDate} onChange={date => setStartDate(date)} />
                 <DatePicker selected={endDate} onChange={date => setEndDate(date)} />
                 {selectedCoin && <CoinDetails coin={selectedCoin} history={history} />}
+                </div>
+              <div style={{ flex: 1, border: '1px solid #333', margin: '10px', padding: '20px', borderRadius: '10px', boxSizing: 'border-box', backgroundColor: '#1F1F1F', color: '#A9A9A9' }}>
+                <CryptoNewsAnalyzer coins={allCoins} />
               </div>
             </div>
           </div>
