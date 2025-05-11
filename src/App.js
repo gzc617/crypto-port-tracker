@@ -68,6 +68,7 @@ function App() {
       .catch(error => {
         console.error('Error fetching all coins', error);
       });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -93,6 +94,7 @@ function App() {
       .catch(error => {
         console.error('Error fetching data', error);
       });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [holdings]);
 
   const handleCoinSelect = (id) => {
