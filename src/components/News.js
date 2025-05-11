@@ -8,7 +8,7 @@ function NewsTicker() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const apiKey = process.env.REACT_APP_NEWS_API_KEY; // Use the environment variable
+    const apiKey = "6c5c579db7c045039231d1b5df237f10"; // Use the environment variable
     axios.get(`https://newsapi.org/v2/everything?q=cryptocurrency&apiKey=${apiKey}`)
       .then(response => {
         setNews(response.data.articles);
