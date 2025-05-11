@@ -8,14 +8,21 @@ function NewsTicker() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const apiKey = "6c5c579db7c045039231d1b5df237f10"; // Use the environment variable
-    axios.get(`https://newsapi.org/v2/everything?q=cryptocurrency&apiKey=${apiKey}`)
+    const apiKey = process.env.REACT_APP_NEWS_API_KEY;
+
+    const NEWS_API_URL = `https://api.allorigins.win/get?url=${encodeURIComponent(
+      `https://newsapi.org/v2/top-headlines?country=us&apiKey=${apiKey}`
+    )}`;
+
+    axios.get(NEWS_API_URL)
       .then(response => {
-        setNews(response.data.articles);
+        const parsedData = JSON.parse(response.data.contents); // Parse the wrapped response
+        console.log('Parsed API Response:', parsedData);
+        setNews(parsedData.articles);
         setIsLoading(false);
       })
       .catch(error => {
-        console.error(error);
+        console.error('API Error:', error);
         setError('Failed to fetch news');
         setIsLoading(false);
       });

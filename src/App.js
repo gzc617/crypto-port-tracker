@@ -50,7 +50,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
-  const api_key = process.env.REACT_APP_COIN_GECKP_API_KEY;
+  const api_key = process.env.REACT_APP_COINGECKO_API_KEY;
 
   const holdings = useMemo(() => holdingsData, []);
 
