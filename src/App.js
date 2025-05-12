@@ -216,7 +216,6 @@ function App() {
           </div>
         )}
       </header>
-      <Analytics />
     </div>
   );
 }
