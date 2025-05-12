@@ -6,6 +6,7 @@ import 'react-datepicker/dist/react-datepicker.css';
 import './App.css'; // Import the CSS
 import NewsTicker from './components/News'; // Import the News components
 import CryptoNewsAnalyzer from './components/CryptoNewsAnalyzer'; // Import the CryptoNewsAnalyzer components
+import { Analytics } from "@vercel/analytics/react"
 
 function CoinDetails({ coin, history }) {
   // Prepare the data for the line chart
