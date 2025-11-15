@@ -356,6 +356,83 @@ body {
   font-size: 12px;
 }
 
+/* Edit Holdings */
+.edit-holdings {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.edit-amount-input {
+  background: #2b3139;
+  border: 1px solid #2b3139;
+  color: #ffffff;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  width: 150px;
+  box-sizing: border-box;
+}
+
+.edit-amount-input:focus {
+  outline: none;
+  border-color: #f0b90b;
+  background: #3a4048;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.save-btn,
+.cancel-btn {
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+
+.save-btn {
+  background: #16c784;
+  color: #ffffff;
+}
+
+.save-btn:hover {
+  background: #14b377;
+}
+
+.cancel-btn {
+  background: #2b3139;
+  color: #848e9c;
+}
+
+.cancel-btn:hover {
+  background: #3a4048;
+  color: #ffffff;
+}
+
+.edit-btn {
+  background: #2b3139;
+  border: 1px solid #2b3139;
+  color: #848e9c;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.edit-btn:hover {
+  background: #3a4048;
+  color: #ffffff;
+  border-color: #3a4048;
+}
+
 .empty-state {
   text-align: center;
   color: #848e9c;

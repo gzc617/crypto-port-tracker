@@ -10,7 +10,8 @@ const ASSETS = [
   { label: 'HBAR', symbol: 'HBAR', id: 'hedera-hashgraph' },
   { label: 'Curve', symbol: 'CRV', id: 'curve-dao-token' },
   { label: 'Avalanche', symbol: 'AVAX', id: 'avalanche-2' },
-  { label: 'Dogecoin', symbol: 'DOGE', id: 'dogecoin' }
+  { label: 'Dogecoin', symbol: 'DOGE', id: 'dogecoin' },
+  { label: 'Ethereum', symbol: 'ETH', id: 'ethereum' },
 ];
 
 function App() {
@@ -47,15 +48,17 @@ function App() {
     }
     setLoading(true);
     try {
-      const priceRes = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${assetObj.id}&vs_currencies=usd&include_24hr_change=true`);
-      const priceData = await priceRes.json();
-      const price = priceData[assetObj.id]?.usd;
-      const change24h = priceData[assetObj.id]?.usd_24h_change || 0;
-      if (!price) {
+      const marketsRes = await fetch(`https://api.coingecko.com/api/v3/coins/markets?ids=${assetObj.id}&vs_currency=usd`);
+      const marketsData = await marketsRes.json();
+      const coinData = marketsData.find(coin => coin.id === assetObj.id);
+      if (!coinData || !coinData.current_price) {
         setError('No USD price available for this token');
         setLoading(false);
         return;
       }
+      const price = coinData.current_price;
+      const change24h = coinData.price_change_percentage_24h || 0;
+      const marketCap = coinData.market_cap || 0;
       setTokens([
         ...tokens,
         {
@@ -65,7 +68,8 @@ function App() {
           amount,
           currentValue: price,
           totalValue: price * amount,
-          change24h: change24h
+          change24h: change24h,
+          marketCap: marketCap
         },
       ]);
       setInputAmount('');
@@ -86,16 +90,20 @@ function App() {
       setLoading(true);
       try {
         const ids = tokens.map((t) => t.id).join(',');
-        const priceRes = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`);
-        const priceData = await priceRes.json();
+        const marketsRes = await fetch(`https://api.coingecko.com/api/v3/coins/markets?ids=${ids}&vs_currency=usd`);
+        const marketsData = await marketsRes.json();
         setTokens((prev) => prev.map((t) => {
-          const price = priceData[t.id]?.usd || t.currentValue;
-          const change24h = priceData[t.id]?.usd_24h_change || t.change24h || 0;
+          const coinData = marketsData.find(coin => coin.id === t.id);
+          if (!coinData) return t;
+          const price = coinData.current_price || t.currentValue;
+          const change24h = coinData.price_change_percentage_24h ?? t.change24h ?? 0;
+          const marketCap = coinData.market_cap || t.marketCap || 0;
           return {
             ...t,
             currentValue: price,
             totalValue: price * t.amount,
-            change24h: change24h
+            change24h: change24h,
+            marketCap: marketCap
           };
         }));
       } catch (e) {
@@ -116,6 +124,45 @@ function App() {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     }).format(value);
+  };
+
+  // Handle updating token holdings
+  const handleUpdateHoldings = async (tokenId, newAmount) => {
+    if (isNaN(newAmount) || newAmount < 0) {
+      setError('Enter a valid amount');
+      return;
+    }
+    setLoading(true);
+    try {
+      const token = tokens.find(t => t.id === tokenId);
+      if (!token) return;
+      
+      // Fetch latest price to recalculate total value using markets endpoint
+      const marketsRes = await fetch(`https://api.coingecko.com/api/v3/coins/markets?ids=${tokenId}&vs_currency=usd`);
+      const marketsData = await marketsRes.json();
+      const coinData = marketsData.find(coin => coin.id === tokenId);
+      const price = coinData?.current_price || token.currentValue;
+      const change24h = coinData?.price_change_percentage_24h ?? token.change24h ?? 0;
+      const marketCap = coinData?.market_cap || token.marketCap || 0;
+      
+      setTokens((prev) => prev.map((t) => {
+        if (t.id === tokenId) {
+          return {
+            ...t,
+            amount: parseFloat(newAmount),
+            currentValue: price,
+            totalValue: price * parseFloat(newAmount),
+            change24h: change24h,
+            marketCap: marketCap
+          };
+        }
+        return t;
+      }));
+    } catch (e) {
+      setError('Error updating holdings');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -213,7 +260,11 @@ function App() {
             + Add Asset
           </button>
         </div>
-        <Portfolio portfolio={tokens} showTable={true} />
+        <Portfolio 
+          portfolio={tokens} 
+          showTable={true} 
+          onUpdateHoldings={handleUpdateHoldings}
+        />
       </div>
 
       {showAddModal && (

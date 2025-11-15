@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { useEthereumMarketCap } from '../contexts/EthereumMarketCapContext';
 
 /**
  * TradingViewWidget: renders TradingView widget for portfolio chart
@@ -69,11 +70,15 @@ function TradingViewWidget({ portfolio, selectedTokenId }) {
 
 /**
  * Props: portfolio [{
- *   id, name, symbol, amount, currentValue, totalValue, change24h
+ *   id, name, symbol, amount, currentValue, totalValue, change24h, marketCap
  * }]
- * showTable, showChart, showAllocation, showStatistics, selectedChartToken
+ * showTable, showChart, showAllocation, showStatistics, selectedChartToken, onUpdateHoldings
  */
-function Portfolio({ portfolio, showTable, showChart, showAllocation, showStatistics, timeframe, selectedChartToken }) {
+function Portfolio({ portfolio, showTable, showChart, showAllocation, showStatistics, timeframe, selectedChartToken, onUpdateHoldings }) {
+  const [editingTokenId, setEditingTokenId] = React.useState(null);
+  const [editAmount, setEditAmount] = React.useState('');
+  const ethGlobalMarketCap = useEthereumMarketCap();
+
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -90,42 +95,145 @@ function Portfolio({ portfolio, showTable, showChart, showAllocation, showStatis
     }).format(value);
   };
 
+  const formatMarketCap = (value) => {
+    if (!value || value === 0) return 'N/A';
+    if (value >= 1e12) return `$${(value / 1e12).toFixed(2)}T`;
+    if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
+    if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`;
+    if (value >= 1e3) return `$${(value / 1e3).toFixed(2)}K`;
+    return formatCurrency(value);
+  };
+
+  const handleEditClick = (token) => {
+    setEditingTokenId(token.id);
+    setEditAmount(token.amount.toString());
+  };
+
+  const handleSaveEdit = (tokenId) => {
+    if (onUpdateHoldings) {
+      onUpdateHoldings(tokenId, editAmount);
+    }
+    setEditingTokenId(null);
+    setEditAmount('');
+  };
+
+  const handleCancelEdit = () => {
+    setEditingTokenId(null);
+    setEditAmount('');
+  };
+
+  // --- Allocation/Universe math ---
+  const totalPortfolioValue = portfolio.reduce((sum, t) => sum + (t.totalValue || 0), 0);
+  // ETH for CBETH market allocation adjustment (now using global context)
+  const getMarketCapForAllocation = (coin) => {
+    if (coin.id === 'coinbase-wrapped-staked-eth') {
+      return ethGlobalMarketCap || 0;
+    }
+    return coin.marketCap || 0;
+  };
+  const totalUniverseValue = portfolio.reduce((sum, t) => sum + getMarketCapForAllocation(t), 0);
+  // -------------------------------
+
   if (showTable) {
     if (portfolio.length === 0) {
       return <div className="empty-state">No assets in portfolio. Click "+ Add Asset" to get started.</div>;
     }
     return (
       <div className="assets-table-container">
+        <div style={{marginBottom: 16, color: '#f0b90b', fontWeight: 500}}>
+          Total Universe Value: {formatMarketCap(totalUniverseValue)}
+        </div>
         <table className="assets-table">
           <thead>
             <tr>
               <th>Name</th>
               <th>Price</th>
+              <th>Market Cap</th>
+              <th>Market Allocation</th>
+              <th>Portfolio Allocation</th>
+              <th>O/W or U/W</th>
               <th>24h</th>
               <th>Holdings</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {portfolio.map((coin) => (
-              <tr key={coin.id}>
-                <td>
-                  <div className="asset-name">
-                    <strong>{coin.name}</strong>
-                    <span className="asset-symbol">{coin.symbol}</span>
-                  </div>
-                </td>
-                <td>{formatCurrency(coin.currentValue)}</td>
-                <td className={coin.change24h >= 0 ? 'positive' : 'negative'}>
-                  {coin.change24h >= 0 ? '+' : ''}{coin.change24h?.toFixed(2)}%
-                </td>
-                <td>
-                  <div className="holdings-info">
-                    <div>{formatCurrency(coin.totalValue)}</div>
-                    <div className="holdings-amount">{formatNumber(coin.amount)} {coin.symbol}</div>
-                  </div>
-                </td>
-              </tr>
-            ))}
+            {portfolio.map((coin) => {
+              const customMarketCap = getMarketCapForAllocation(coin);
+              const marketAllocation = totalUniverseValue ? customMarketCap / totalUniverseValue : 0;
+              const portfolioAllocation = totalPortfolioValue ? (coin.totalValue || 0) / totalPortfolioValue : 0;
+              const overweight = portfolioAllocation - marketAllocation;
+              return (
+                <tr key={coin.id}>
+                  <td>
+                    <div className="asset-name">
+                      <strong>{coin.name}</strong>
+                      <span className="asset-symbol">{coin.symbol}</span>
+                    </div>
+                  </td>
+                  <td>{formatCurrency(coin.currentValue)}</td>
+                  <td>{formatMarketCap(coin.marketCap)}</td>
+                  <td>{(marketAllocation * 100).toFixed(2)}%</td>
+                  <td>{(portfolioAllocation * 100).toFixed(2)}%</td>
+                  <td className={overweight >= 0 ? 'positive' : 'negative'}>
+                    {(overweight * 100).toFixed(2)}%
+                  </td>
+                  <td className={coin.change24h >= 0 ? 'positive' : 'negative'}>
+                    {coin.change24h >= 0 ? '+' : ''}{coin.change24h?.toFixed(2)}%
+                  </td>
+                  <td>
+                    {editingTokenId === coin.id ? (
+                      <div className="edit-holdings">
+                        <input
+                          type="number"
+                          value={editAmount}
+                          onChange={(e) => setEditAmount(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleSaveEdit(coin.id);
+                            } else if (e.key === 'Escape') {
+                              handleCancelEdit();
+                            }
+                          }}
+                          className="edit-amount-input"
+                          step="any"
+                          autoFocus
+                        />
+                        <div className="edit-actions">
+                          <button 
+                            className="save-btn"
+                            onClick={() => handleSaveEdit(coin.id)}
+                          >
+                            Save
+                          </button>
+                          <button 
+                            className="cancel-btn"
+                            onClick={handleCancelEdit}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="holdings-info">
+                        <div>{formatCurrency(coin.totalValue)}</div>
+                        <div className="holdings-amount">{formatNumber(coin.amount)} {coin.symbol}</div>
+                      </div>
+                    )}
+                  </td>
+                  <td>
+                    {editingTokenId === coin.id ? null : (
+                      <button 
+                        className="edit-btn"
+                        onClick={() => handleEditClick(coin)}
+                      >
+                        Edit
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
