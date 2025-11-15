@@ -14,11 +14,21 @@ const ASSETS = [
 ];
 
 function App() {
-  const [tokens, setTokens] = useState([]); // [{id, symbol, label, amount, currentValue, totalValue}]
+  const [tokens, setTokens] = useState([]);
   const [selectedAsset, setSelectedAsset] = useState(ASSETS[0].id);
   const [inputAmount, setInputAmount] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [activeTab, setActiveTab] = useState('Chart');
+  const [timeframe, setTimeframe] = useState('All');
+  const [selectedChartToken, setSelectedChartToken] = useState(null);
+  const [previousTotalValue, setPreviousTotalValue] = useState(0);
+
+  // Calculate total portfolio value
+  const totalValue = tokens.reduce((sum, token) => sum + (token.totalValue || 0), 0);
+  const change24h = totalValue - previousTotalValue;
+  const change24hPercent = previousTotalValue > 0 ? ((change24h / previousTotalValue) * 100) : 0;
 
   // Add token
   const handleAddToken = async (e) => {
@@ -36,11 +46,11 @@ function App() {
       return;
     }
     setLoading(true);
-    // Fetch price
     try {
-      const priceRes = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${assetObj.id}&vs_currencies=usd`);
+      const priceRes = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${assetObj.id}&vs_currencies=usd&include_24hr_change=true`);
       const priceData = await priceRes.json();
       const price = priceData[assetObj.id]?.usd;
+      const change24h = priceData[assetObj.id]?.usd_24h_change || 0;
       if (!price) {
         setError('No USD price available for this token');
         setLoading(false);
@@ -54,10 +64,12 @@ function App() {
           symbol: assetObj.symbol,
           amount,
           currentValue: price,
-          totalValue: price * amount
+          totalValue: price * amount,
+          change24h: change24h
         },
       ]);
       setInputAmount('');
+      setShowAddModal(false);
     } catch (e) {
       setError('API error, try again');
     } finally {
@@ -65,21 +77,25 @@ function App() {
     }
   };
 
-  // Refresh prices every 60s or when tokens are added/removed
+  // Refresh prices every 60s
   useEffect(() => {
     if (tokens.length === 0) return;
     const fetchPrices = async () => {
+      const currentTotal = tokens.reduce((sum, token) => sum + (token.totalValue || 0), 0);
+      setPreviousTotalValue(currentTotal);
       setLoading(true);
       try {
         const ids = tokens.map((t) => t.id).join(',');
-        const priceRes = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`);
+        const priceRes = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`);
         const priceData = await priceRes.json();
         setTokens((prev) => prev.map((t) => {
           const price = priceData[t.id]?.usd || t.currentValue;
+          const change24h = priceData[t.id]?.usd_24h_change || t.change24h || 0;
           return {
             ...t,
             currentValue: price,
-            totalValue: price * t.amount
+            totalValue: price * t.amount,
+            change24h: change24h
           };
         }));
       } catch (e) {
@@ -93,33 +109,150 @@ function App() {
     return () => clearInterval(interval);
   }, [tokens.length]);
 
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(value);
+  };
+
   return (
     <div className="App">
-      <h1>My Crypto Portfolio</h1>
-      <form onSubmit={handleAddToken} style={{ marginBottom: 24 }}>
-        <select
-          value={selectedAsset}
-          onChange={e => setSelectedAsset(e.target.value)}
-          style={{ marginRight: 8 }}
-        >
-          {ASSETS.map(asset => (
-            <option value={asset.id} key={asset.id}>{asset.label} ({asset.symbol})</option>
-          ))}
-        </select>
-        <input
-          type="number"
-          value={inputAmount}
-          onChange={e => setInputAmount(e.target.value)}
-          placeholder="Amount"
-          style={{ marginRight: 8 }}
-        />
-        <button type="submit" disabled={loading}>
-          Add
-        </button>
-      </form>
-      {error && <div style={{ color: "#fa5252", marginBottom: 12 }}>{error}</div>}
-      {loading && <div>Loading...</div>}
-      <Portfolio portfolio={tokens} />
+      <div className="portfolio-header">
+        <div className="current-balance">
+          <h2>Current Balance</h2>
+          <div className="balance-amount">{formatCurrency(totalValue)}</div>
+          <div className={`balance-change ${change24h >= 0 ? 'positive' : 'negative'}`}>
+            {change24h >= 0 ? '+' : ''}{formatCurrency(change24h)} ({change24hPercent >= 0 ? '+' : ''}{change24hPercent.toFixed(2)}%)
+          </div>
+        </div>
+      </div>
+
+      <div className="chart-section">
+        <div className="chart-tabs">
+          <button 
+            className={activeTab === 'Chart' ? 'active' : ''} 
+            onClick={() => setActiveTab('Chart')}
+          >
+            Chart
+          </button>
+          <button 
+            className={activeTab === 'Allocation' ? 'active' : ''} 
+            onClick={() => setActiveTab('Allocation')}
+          >
+            Allocation
+          </button>
+          <button 
+            className={activeTab === 'Statistics' ? 'active' : ''} 
+            onClick={() => setActiveTab('Statistics')}
+          >
+            Statistics
+          </button>
+        </div>
+
+        {activeTab === 'Chart' && (
+          <div className="chart-container">
+            {tokens.length > 0 && (
+              <div className="token-selector">
+                <label htmlFor="chart-token-select">Select Token:</label>
+                <select
+                  id="chart-token-select"
+                  value={selectedChartToken || tokens[0]?.id || ''}
+                  onChange={(e) => setSelectedChartToken(e.target.value)}
+                  className="token-select-dropdown"
+                >
+                  {tokens.map((token) => (
+                    <option key={token.id} value={token.id}>
+                      {token.name} ({token.symbol})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="timeframe-selector">
+              {['24h', '7d', '30d', '60d', '90d', 'All'].map((tf) => (
+                <button
+                  key={tf}
+                  className={timeframe === tf ? 'active' : ''}
+                  onClick={() => setTimeframe(tf)}
+                >
+                  {tf}
+                </button>
+              ))}
+            </div>
+            <div className="portfolio-chart">
+              <Portfolio 
+                portfolio={tokens} 
+                timeframe={timeframe} 
+                showChart={true}
+                selectedChartToken={selectedChartToken || (tokens.length > 0 ? tokens[0].id : null)}
+              />
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'Allocation' && (
+          <div className="allocation-view">
+            <Portfolio portfolio={tokens} showAllocation={true} />
+          </div>
+        )}
+
+        {activeTab === 'Statistics' && (
+          <div className="statistics-view">
+            <Portfolio portfolio={tokens} showStatistics={true} />
+          </div>
+        )}
+      </div>
+
+      <div className="assets-section">
+        <div className="assets-header">
+          <h3>Your Assets</h3>
+          <button className="add-asset-btn" onClick={() => setShowAddModal(true)}>
+            + Add Asset
+          </button>
+        </div>
+        <Portfolio portfolio={tokens} showTable={true} />
+      </div>
+
+      {showAddModal && (
+        <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Add Asset</h3>
+              <button className="close-btn" onClick={() => setShowAddModal(false)}>×</button>
+            </div>
+            <form onSubmit={handleAddToken}>
+              <div className="form-group">
+                <label>Select Asset</label>
+                <select
+                  value={selectedAsset}
+                  onChange={e => setSelectedAsset(e.target.value)}
+                >
+                  {ASSETS.map(asset => (
+                    <option value={asset.id} key={asset.id}>{asset.label} ({asset.symbol})</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Amount</label>
+                <input
+                  type="number"
+                  value={inputAmount}
+                  onChange={e => setInputAmount(e.target.value)}
+                  placeholder="Enter amount"
+                  step="any"
+                />
+              </div>
+              {error && <div className="error-message">{error}</div>}
+              <button type="submit" className="submit-btn" disabled={loading}>
+                {loading ? 'Adding...' : 'Add Asset'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
