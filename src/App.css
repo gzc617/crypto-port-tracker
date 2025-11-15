@@ -562,3 +562,19 @@ body {
 h1, h2, h3 {
   color: #ffffff;
 }
+
+.delete-btn {
+  background: #ea3943;
+  color: #fff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  margin-left: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.delete-btn:hover {
+  background: #ba2531;
+}

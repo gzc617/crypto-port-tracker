@@ -74,7 +74,7 @@ function TradingViewWidget({ portfolio, selectedTokenId }) {
  * }]
  * showTable, showChart, showAllocation, showStatistics, selectedChartToken, onUpdateHoldings
  */
-function Portfolio({ portfolio, showTable, showChart, showAllocation, showStatistics, timeframe, selectedChartToken, onUpdateHoldings }) {
+function Portfolio({ portfolio, showTable, showChart, showAllocation, showStatistics, timeframe, selectedChartToken, onUpdateHoldings, onDeleteToken }) {
   const [editingTokenId, setEditingTokenId] = React.useState(null);
   const [editAmount, setEditAmount] = React.useState('');
   const ethGlobalMarketCap = useEthereumMarketCap();
@@ -223,12 +223,23 @@ function Portfolio({ portfolio, showTable, showChart, showAllocation, showStatis
                   </td>
                   <td>
                     {editingTokenId === coin.id ? null : (
-                      <button 
-                        className="edit-btn"
-                        onClick={() => handleEditClick(coin)}
-                      >
-                        Edit
-                      </button>
+                      <>
+                        <button 
+                          className="edit-btn"
+                          onClick={() => handleEditClick(coin)}
+                        >
+                          Edit
+                        </button>
+                        {onDeleteToken && (
+                          <button
+                            className="delete-btn"
+                            onClick={() => onDeleteToken(coin.id)}
+                            style={{marginLeft: 6}}
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </>
                     )}
                   </td>
                 </tr>

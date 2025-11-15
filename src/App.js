@@ -14,17 +14,42 @@ const ASSETS = [
   { label: 'Ethereum', symbol: 'ETH', id: 'ethereum' },
 ];
 
+// Optionally: define a default starter portfolio here (or [] for empty)
+const DEFAULT_IDS = ['bitcoin', 'coinbase-wrapped-staked-eth', 'ethereum'];
+
 function App() {
   const [tokens, setTokens] = useState([]);
   const [selectedAsset, setSelectedAsset] = useState(ASSETS[0].id);
   const [inputAmount, setInputAmount] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [activeTab, setActiveTab] = useState('Chart');
   const [timeframe, setTimeframe] = useState('All');
   const [selectedChartToken, setSelectedChartToken] = useState(null);
   const [previousTotalValue, setPreviousTotalValue] = useState(0);
+
+  // Load tokens from localStorage when app mounts (do NOT fetch defaults if missing)
+  useEffect(() => {
+    const cached = localStorage.getItem('portfolio_tokens');
+    console.log("cached", cached);
+    console.log("tokens", tokens);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) setTokens(parsed);
+      } catch {}
+    }
+    setLoading(false)
+    // if no cache, setTokens([]) by default (done by useState above)
+  }, []);
+  // Save tokens to localStorage every change
+  useEffect(() => {
+    if (loading) return;
+    console.log("tokens", tokens);
+    console.log("JSON.stringify(tokens)", JSON.stringify(tokens));
+    localStorage.setItem('portfolio_tokens', JSON.stringify(tokens));
+  }, [tokens]);
 
   // Calculate total portfolio value
   const totalValue = tokens.reduce((sum, token) => sum + (token.totalValue || 0), 0);
@@ -69,7 +94,7 @@ function App() {
           currentValue: price,
           totalValue: price * amount,
           change24h: change24h,
-          marketCap: marketCap
+          marketCap: marketCap,
         },
       ]);
       setInputAmount('');
@@ -103,7 +128,7 @@ function App() {
             currentValue: price,
             totalValue: price * t.amount,
             change24h: change24h,
-            marketCap: marketCap
+            marketCap: marketCap,
           };
         }));
       } catch (e) {
@@ -126,6 +151,11 @@ function App() {
     }).format(value);
   };
 
+  // Delete asset
+  const handleDeleteToken = (tokenId) => {
+    setTokens(tokens => tokens.filter(t => t.id !== tokenId));
+  };
+
   // Handle updating token holdings
   const handleUpdateHoldings = async (tokenId, newAmount) => {
     if (isNaN(newAmount) || newAmount < 0) {
@@ -136,7 +166,6 @@ function App() {
     try {
       const token = tokens.find(t => t.id === tokenId);
       if (!token) return;
-      
       // Fetch latest price to recalculate total value using markets endpoint
       const marketsRes = await fetch(`https://api.coingecko.com/api/v3/coins/markets?ids=${tokenId}&vs_currency=usd`);
       const marketsData = await marketsRes.json();
@@ -144,7 +173,6 @@ function App() {
       const price = coinData?.current_price || token.currentValue;
       const change24h = coinData?.price_change_percentage_24h ?? token.change24h ?? 0;
       const marketCap = coinData?.market_cap || token.marketCap || 0;
-      
       setTokens((prev) => prev.map((t) => {
         if (t.id === tokenId) {
           return {
@@ -153,7 +181,7 @@ function App() {
             currentValue: price,
             totalValue: price * parseFloat(newAmount),
             change24h: change24h,
-            marketCap: marketCap
+            marketCap: marketCap,
           };
         }
         return t;
@@ -176,7 +204,6 @@ function App() {
           </div>
         </div>
       </div>
-
       <div className="chart-section">
         <div className="chart-tabs">
           <button 
@@ -198,7 +225,6 @@ function App() {
             Statistics
           </button>
         </div>
-
         {activeTab === 'Chart' && (
           <div className="chart-container">
             {tokens.length > 0 && (
@@ -239,20 +265,17 @@ function App() {
             </div>
           </div>
         )}
-
         {activeTab === 'Allocation' && (
           <div className="allocation-view">
             <Portfolio portfolio={tokens} showAllocation={true} />
           </div>
         )}
-
         {activeTab === 'Statistics' && (
           <div className="statistics-view">
             <Portfolio portfolio={tokens} showStatistics={true} />
           </div>
         )}
       </div>
-
       <div className="assets-section">
         <div className="assets-header">
           <h3>Your Assets</h3>
@@ -264,9 +287,9 @@ function App() {
           portfolio={tokens} 
           showTable={true} 
           onUpdateHoldings={handleUpdateHoldings}
+          onDeleteToken={handleDeleteToken}
         />
       </div>
-
       {showAddModal && (
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
