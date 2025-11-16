@@ -1,5 +1,10 @@
 # Crypto Portfolio Tracker
 
+Notes for next time: 
+- db only have BTC data and needs cron job for updating daily data into neon db
+- normalize performance so it's on % and not on nominal value
+- risk dashboard not working but copy set up from performance 
+
 A comprehensive React-based cryptocurrency portfolio tracker with advanced performance analytics and risk management features. This application allows you to track your crypto holdings, analyze performance against market benchmarks, and assess portfolio risk metrics in real-time.
 
 ## 🚀 Features
