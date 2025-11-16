@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Portfolio from './components/Portfolio';
+import PerformanceDashboard from './components/PerformanceDashboard';
+import RiskDashboard from './components/RiskDashboard';
 import './App.css';
 
 // Predefined asset list
@@ -28,12 +30,11 @@ function App() {
   const [timeframe, setTimeframe] = useState('All');
   const [selectedChartToken, setSelectedChartToken] = useState(null);
   const [previousTotalValue, setPreviousTotalValue] = useState(0);
+  const [dashboardTab, setDashboardTab] = useState('Portfolio');
 
   // Load tokens from localStorage when app mounts (do NOT fetch defaults if missing)
   useEffect(() => {
     const cached = localStorage.getItem('portfolio_tokens');
-    console.log("cached", cached);
-    console.log("tokens", tokens);
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
@@ -46,8 +47,6 @@ function App() {
   // Save tokens to localStorage every change
   useEffect(() => {
     if (loading) return;
-    console.log("tokens", tokens);
-    console.log("JSON.stringify(tokens)", JSON.stringify(tokens));
     localStorage.setItem('portfolio_tokens', JSON.stringify(tokens));
   }, [tokens]);
 
@@ -204,78 +203,96 @@ function App() {
           </div>
         </div>
       </div>
-      <div className="chart-section">
-        <div className="chart-tabs">
-          <button 
-            className={activeTab === 'Chart' ? 'active' : ''} 
-            onClick={() => setActiveTab('Chart')}
-          >
-            Chart
-          </button>
-          <button 
-            className={activeTab === 'Allocation' ? 'active' : ''} 
-            onClick={() => setActiveTab('Allocation')}
-          >
-            Allocation
-          </button>
-          <button 
-            className={activeTab === 'Statistics' ? 'active' : ''} 
-            onClick={() => setActiveTab('Statistics')}
-          >
-            Statistics
-          </button>
-        </div>
-        {activeTab === 'Chart' && (
-          <div className="chart-container">
-            {tokens.length > 0 && (
-              <div className="token-selector">
-                <label htmlFor="chart-token-select">Select Token:</label>
-                <select
-                  id="chart-token-select"
-                  value={selectedChartToken || tokens[0]?.id || ''}
-                  onChange={(e) => setSelectedChartToken(e.target.value)}
-                  className="token-select-dropdown"
-                >
-                  {tokens.map((token) => (
-                    <option key={token.id} value={token.id}>
-                      {token.name} ({token.symbol})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-            <div className="timeframe-selector">
-              {['24h', '7d', '30d', '60d', '90d', 'All'].map((tf) => (
-                <button
-                  key={tf}
-                  className={timeframe === tf ? 'active' : ''}
-                  onClick={() => setTimeframe(tf)}
-                >
-                  {tf}
-                </button>
-              ))}
-            </div>
-            <div className="portfolio-chart">
-              <Portfolio 
-                portfolio={tokens} 
-                timeframe={timeframe} 
-                showChart={true}
-                selectedChartToken={selectedChartToken || (tokens.length > 0 ? tokens[0].id : null)}
-              />
-            </div>
-          </div>
-        )}
-        {activeTab === 'Allocation' && (
-          <div className="allocation-view">
-            <Portfolio portfolio={tokens} showAllocation={true} />
-          </div>
-        )}
-        {activeTab === 'Statistics' && (
-          <div className="statistics-view">
-            <Portfolio portfolio={tokens} showStatistics={true} />
-          </div>
-        )}
+      <div style={{marginBottom: 16, borderBottom: '1px solid #222', paddingBottom: 5}}>
+        {['Portfolio', 'Performance', 'Risk'].map(tab => (
+          <button
+            key={tab}
+            onClick={() => setDashboardTab(tab)}
+            style={{ marginRight: 9, fontWeight: dashboardTab === tab ? 'bold' : 400 }}
+            className={dashboardTab === tab ? 'active' : ''}
+          >{tab}</button>
+        ))}
       </div>
+      {dashboardTab === 'Portfolio' && (
+        <div className="chart-section">
+          <div className="chart-tabs">
+            <button 
+              className={activeTab === 'Chart' ? 'active' : ''} 
+              onClick={() => setActiveTab('Chart')}
+            >
+              Chart
+            </button>
+            <button 
+              className={activeTab === 'Allocation' ? 'active' : ''} 
+              onClick={() => setActiveTab('Allocation')}
+            >
+              Allocation
+            </button>
+            <button 
+              className={activeTab === 'Statistics' ? 'active' : ''} 
+              onClick={() => setActiveTab('Statistics')}
+            >
+              Statistics
+            </button>
+          </div>
+          {activeTab === 'Chart' && (
+            <div className="chart-container">
+              {tokens.length > 0 && (
+                <div className="token-selector">
+                  <label htmlFor="chart-token-select">Select Token:</label>
+                  <select
+                    id="chart-token-select"
+                    value={selectedChartToken || tokens[0]?.id || ''}
+                    onChange={(e) => setSelectedChartToken(e.target.value)}
+                    className="token-select-dropdown"
+                  >
+                    {tokens.map((token) => (
+                      <option key={token.id} value={token.id}>
+                        {token.name} ({token.symbol})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div className="timeframe-selector">
+                {['24h', '7d', '30d', '60d', '90d', 'All'].map((tf) => (
+                  <button
+                    key={tf}
+                    className={timeframe === tf ? 'active' : ''}
+                    onClick={() => setTimeframe(tf)}
+                  >
+                    {tf}
+                  </button>
+                ))}
+              </div>
+              <div className="portfolio-chart">
+                <Portfolio 
+                  portfolio={tokens} 
+                  timeframe={timeframe} 
+                  showChart={true}
+                  selectedChartToken={selectedChartToken || (tokens.length > 0 ? tokens[0].id : null)}
+                />
+              </div>
+            </div>
+          )}
+          {activeTab === 'Allocation' && (
+            <div className="allocation-view">
+              <Portfolio portfolio={tokens} showAllocation={true} />
+            </div>
+          )}
+          {activeTab === 'Statistics' && (
+            <div className="statistics-view">
+              <Portfolio portfolio={tokens} showStatistics={true} />
+            </div>
+          )}
+        </div>
+      )}
+      {dashboardTab === 'Performance' && (
+        <PerformanceDashboard tokens={tokens} />
+      )}
+      {dashboardTab === 'Risk' && (
+        <RiskDashboard tokens={tokens} />
+      )}
       <div className="assets-section">
         <div className="assets-header">
           <h3>Your Assets</h3>
